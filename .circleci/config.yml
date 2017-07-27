@@ -1,0 +1,8 @@
+version: 2
+
+jobs:
+  test:
+    steps:
+      - run:
+        name: "Nothing"
+        command: "true"

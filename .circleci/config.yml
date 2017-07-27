@@ -2,6 +2,7 @@ version: 2
 
 jobs:
 
+  # TODO actual building can be done here, i.e. pulling in of dependencies
   build:
     branches:
       only:
@@ -11,8 +12,19 @@ jobs:
     working_directory: ~/test-repo
     steps:
       - checkout
+      - run: "true"
 
-  pull_deploy_deps:
+  # TODO Put some tests in here
+  test:
+    docker:
+      - image: circleci/python:2.7.13
+    working_directory: ~/test-repo
+    steps:
+      - checkout
+      - run: "true"
+
+  # These are dependencies for the deploy script, not the app itself
+  pull-deploy-deps:
     docker:
       - image: circleci/python:2.7.13
     working_directory: ~/test-repo
@@ -32,30 +44,40 @@ jobs:
           paths:
             - daenv
 
-  # Put some tests in here
-  test:
-    docker:
-      - image: circleci/python:2.7.13
-    working_directory: ~/test-repo
-    steps:
-      - run: "true"
-
   deploy:
     docker:
       - image: circleci/python:2.7.13
     working_directory: ~/test-repo
     steps:
-      - run: pip freeze
+      - checkout
+      - restore_cache:
+          keys:
+            - v1-daenv-{{ checksum ".circleci/requirements.txt" }}
       - run:
-          name: Run Script
-          command: /bin/bash test-repo/test/echo.sh
+          name: Run Deploy Script
+          command: |
+            . daenv/bin/activate
+            /bin/bash test/echo.sh
 
 workflows:
   version: 2
 
-  prod:
+  build-test-deploy:
     jobs:
-      - pull_deploy_deps:
+      - build
+      - test:
+          requires:
+            - build
+      - pull-deploy-deps:
+          requires:
+            - test
+          filters:
+            branches:
+              only:
+                - prod
+      - deploy:
+          requires:
+            - pull-deploy-deps
           filters:
             branches:
               only:

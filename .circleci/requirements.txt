@@ -3,3 +3,4 @@ ndg-httpsclient
 pyasn1
 boto3
 pytz
+awscli

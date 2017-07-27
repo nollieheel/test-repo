@@ -51,26 +51,59 @@ jobs:
           keys:
             - v1-daenv-{{ checksum ".circleci/requirements.txt" }}
       - run:
-          name: Run Deploy Script
+          name: Wait on previous deploy
           command: |
             . daenv/bin/activate
-            /bin/bash test/echo.sh
+            if aws s3 ls s3://iflip-private-ops/var/iflipd-api/prod-deploy.lock ; then
+                echo Waiting for previous deploy to end...
+            fi
+            while aws s3 ls s3://iflip-private-ops/var/iflipd-api/prod-deploy.lock ; do
+                sleep 5
+                printf "."
+            done
+      - run:
+          name: Acquire lock
+          command: |
+            . daenv/bin/activate
+            touch /tmp/prod-deploy.lock
+            aws s3 cp /tmp/prod-deploy.lock s3://iflip-private-ops/var/iflipd-api/prod-deploy.lock
+      - run:
+          name: Deploy to production
+          command: |
+            . daenv/bin/activate
+            echo Deploying
+            python test/asg_deploy.py
+      - run:
+          name: Wait on ASG on fail
+          command: |
+            echo Waiting for 300 seconds for ASG to hopefully normalize...
+            sleep 300
+          when: on_fail
+      - run:
+          name: Cleanup on fail
+          command: |
+            . daenv/bin/activate
+            if aws s3 ls s3://iflip-private-ops/var/iflipd-api/prod-deploy.lock ; then
+              aws s3 rm s3://iflip-private-ops/var/iflipd-api/prod-deploy.lock
+            fi
+          when: always
 
 workflows:
   version: 2
 
-  build-and-test:
-    jobs:
-      - build:
-          filters:
-            branches:
-              ignore: prod
-      - test:
-          requires:
-            - build
-          filters:
-            branches:
-              ignore: prod
+# TODO can be enabled to do tests on all (or some) branches except for production
+#  build-and-test:
+#    jobs:
+#      - build:
+#          filters:
+#            branches:
+#              ignore: prod
+#      - test:
+#          requires:
+#            - build
+#          filters:
+#            branches:
+#              ignore: prod
 
   production-deploy:
     jobs:

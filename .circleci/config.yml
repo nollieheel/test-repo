@@ -8,10 +8,8 @@ jobs:
         - prod
     docker:
       - image: circleci/python:2.7.13
+        command: pip install pyOpenSSL ndg-httpsclient pyasn1 boto3 pytz
     steps:
-      - run:
-          name: Install deps
-          command: pip install pyOpenSSL ndg-httpsclient pyasn1 boto3 pytz
       - run: pip freeze
 
   test:

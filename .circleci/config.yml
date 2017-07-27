@@ -8,14 +8,14 @@ jobs:
         - prod
     docker:
       - image: circleci/python:2.7.13
-    working_directory: ~/earth
+    working_directory: ~/test-repo
     steps:
       - checkout
 
   build_deploy_deps:
     docker:
       - image: circleci/python:2.7.13
-    working_directory: ~/earth
+    working_directory: ~/test-repo
     steps:
       - checkout
       - run: ls -la
@@ -24,20 +24,20 @@ jobs:
           command: |
             virtualenv daenv
             . daenv/bin/activate
-            pip install test-repo/.circle/requirements.txt
+            pip install .circleci/requirements.txt
 
   # Put some tests in here
   test:
     docker:
       - image: circleci/python:2.7.13
-    working_directory: ~/earth
+    working_directory: ~/test-repo
     steps:
       - run: "true"
 
   deploy:
     docker:
       - image: circleci/python:2.7.13
-    working_directory: ~/earth
+    working_directory: ~/test-repo
     steps:
       - run: pip freeze
       - run:

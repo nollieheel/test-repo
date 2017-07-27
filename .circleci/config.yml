@@ -9,8 +9,8 @@ jobs:
       - image: circleci/python:2.7.13
     steps:
       - run:
-          name: "Nothing"
-          command: "true"
+          name: Show pip packages
+          command: pip freeze
   test:
     branches:
       only:

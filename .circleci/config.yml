@@ -8,28 +8,48 @@ jobs:
         - prod
     docker:
       - image: circleci/python:2.7.13
+    working_directory: ~/earth
     steps:
-      - run:
-          name: Install deps
-          command: sudo pip install pyOpenSSL ndg-httpsclient pyasn1 boto3 pytz
-      - run: pip freeze
+      - checkout
 
-  test:
-    branches:
-      only:
-        - prod
+  build_deploy_deps:
     docker:
       - image: circleci/python:2.7.13
+    working_directory: ~/earth
+    steps:
+      - checkout
+      - run:
+          name: Pull in the pips
+          command: |
+            virtualenv daenv
+            . daenv/bin/activate
+            pip install .circle/requirements.txt
+
+  # Put some tests in here
+  test:
+    docker:
+      - image: circleci/python:2.7.13
+    working_directory: ~/earth
     steps:
       - run: "true"
 
   deploy:
-    branches:
-      only:
-        - prod
     docker:
       - image: circleci/python:2.7.13
+    working_directory: ~/earth
     steps:
+      - run: pip freeze
       - run:
-          name: Display pip packages
-          command: pip freeze
+          name: Run Script
+          command: /bin/bash test-repo/test/echo.sh
+
+workflows:
+  version: 2
+
+  prod:
+    jobs:
+      - build_deploy_deps:
+          filters:
+            branches:
+              only:
+                - prod

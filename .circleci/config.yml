@@ -79,7 +79,7 @@ jobs:
             sleep 300
           when: on_fail
       - run:
-          name: Cleanup on fail
+          name: Release lock
           command: |
             . daenv/bin/activate
             if aws s3 ls s3://iflip-private-ops/var/iflipd-api/prod-deploy.lock ; then

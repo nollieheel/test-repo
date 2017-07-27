@@ -18,12 +18,13 @@ jobs:
     working_directory: ~/earth
     steps:
       - checkout
+      - run: ls -la
       - run:
           name: Pull in the pips
           command: |
             virtualenv daenv
             . daenv/bin/activate
-            pip install .circle/requirements.txt
+            pip install test-repo/.circle/requirements.txt
 
   # Put some tests in here
   test:

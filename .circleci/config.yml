@@ -59,12 +59,15 @@ jobs:
 workflows:
   version: 2
 
-  build-test-deploy:
+  build-and-test:
     jobs:
       - build
       - test:
           requires:
             - build
+
+  production-deploy:
+    jobs:
       - pull-deploy-deps:
           requires:
             - test

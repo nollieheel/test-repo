@@ -11,13 +11,3 @@ jobs:
       - run:
           name: Show pip packages
           command: pip freeze
-  test:
-    branches:
-      only:
-        - prod
-    docker:
-      - image: circleci/python:2.7.13
-    steps:
-      - run:
-          name: "Nothing"
-          command: "true"

@@ -24,7 +24,7 @@ jobs:
           command: |
             virtualenv daenv
             . daenv/bin/activate
-            pip install .circleci/requirements.txt
+            pip install -r .circleci/requirements.txt
 
   # Put some tests in here
   test:

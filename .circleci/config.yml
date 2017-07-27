@@ -12,22 +12,25 @@ jobs:
     steps:
       - checkout
 
-  build_deploy_deps:
+  pull_deploy_deps:
     docker:
       - image: circleci/python:2.7.13
     working_directory: ~/test-repo
     steps:
       - checkout
+      - restore_cache:
+          keys:
+            - v1-daenv-{{ checksum ".circleci/requirements.txt" }}
       - run:
           name: Pull in the pips
           command: |
             virtualenv daenv
             . daenv/bin/activate
             pip install -r .circleci/requirements.txt
-      - run: pip freeze
-      - run: |
-          . daenv/bin/activate
-          pip freeze
+      - save_cache:
+          key: v1-daenv-{{ checksum ".circleci/requirements.txt" }}
+          paths:
+            - daenv
 
   # Put some tests in here
   test:
@@ -52,7 +55,7 @@ workflows:
 
   prod:
     jobs:
-      - build_deploy_deps:
+      - pull_deploy_deps:
           filters:
             branches:
               only:

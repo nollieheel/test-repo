@@ -4,9 +4,6 @@ jobs:
 
   # TODO actual building can be done here, i.e. pulling in of dependencies
   build:
-    branches:
-      only:
-        - prod
     docker:
       - image: circleci/python:2.7.13
     working_directory: ~/test-repo

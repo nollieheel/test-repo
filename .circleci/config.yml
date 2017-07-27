@@ -1,6 +1,7 @@
 version: 2
 
 jobs:
+
   build:
     branches:
       only:
@@ -9,5 +10,26 @@ jobs:
       - image: circleci/python:2.7.13
     steps:
       - run:
-          name: Show pip packages
+          name: Install deps
+          command: pip install pyOpenSSL ndg-httpsclient pyasn1 boto3 pytz
+      - run: pip freeze
+
+  test:
+    branches:
+      only:
+        - prod
+    docker:
+      - image: circleci/python:2.7.13
+    steps:
+      - run: "true"
+
+  deploy:
+    branches:
+      only:
+        - prod
+    docker:
+      - image: circleci/python:2.7.13
+    steps:
+      - run:
+          name: Display pip packages
           command: pip freeze

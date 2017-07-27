@@ -198,6 +198,7 @@ def rolling_terminate(asgclient, ec2resource, wait, asg, iids):
   if len(iids) == 0: return True
 
   if terminate_instance(asgclient, ec2resource, iids[0]):
+    print 'ok'
 #    niid = get_newly_born_instance(asgclient, ec2resource, asg, wait)
 #    if not niid:
 #      print 'Error detected while waiting for new instance.'

@@ -18,13 +18,16 @@ jobs:
     working_directory: ~/test-repo
     steps:
       - checkout
-      - run: ls -la
       - run:
           name: Pull in the pips
           command: |
             virtualenv daenv
             . daenv/bin/activate
             pip install -r .circleci/requirements.txt
+      - run: pip freeze
+      - run: |
+          . daenv/bin/activate
+          pip freeze
 
   # Put some tests in here
   test:

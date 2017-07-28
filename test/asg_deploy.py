@@ -8,6 +8,7 @@
 #   pytz
 #
 
+import time
 import os
 import tempfile
 import sys
@@ -152,6 +153,7 @@ def terminate_instance(asgclient, ec2resource, iid):
   if not is_instance_ok(ins): return False
 
   print 'NOT ACTUALLY terminating instance {}.'.format(iid)
+  time.sleep(60)
 #  resp = asgclient.terminate_instance_in_auto_scaling_group(
 #    InstanceId=iid,
 #    ShouldDecrementDesiredCapacity=False

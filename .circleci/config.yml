@@ -41,6 +41,48 @@ jobs:
           paths:
             - daenv
 
+  queue-and-wait-for-lock:
+    docker:
+      - image: circleci/python:2.7.13
+    working_directory: ~/test-repo
+    steps:
+      - restore_cache:
+          keys:
+            - v1-daenv-{{ checksum ".circleci/requirements.txt" }}
+      - run:
+          name: Queue deploy lock
+          command: |
+            . daenv/bin/activate
+
+            locks=$( aws s3 ls s3://iflip-private-ops/var/prod-deploy.lock || printf "" )
+            last=$( echo "$locks" | awk '{ printf("%s\n", $4); }' | sed 's/prod-deploy\.lock\.//' | sort -n | tail -n 1 )
+
+            if [[ -z "$last" ]] ; then
+                mylock=1
+            else
+                mylock=$(( last + 1 ))
+            fi
+
+            tmpfile=$( mktemp --suffix ".prod-deploy.lock" )
+            aws s3 cp "$tmpfile" "s3://iflip-private-ops/var/prod-deploy.lock.${mylock}"
+
+            echo "Waiting on previous builds (if any) to end..."
+            while true ; do
+                l=$( aws s3 ls s3://iflip-private-ops/var/prod-deploy.lock || printf "" )
+                x=$( echo "$l" | awk '{ printf("%s\n", $4); }' | sed 's/prod-deploy\.lock\.//' | sort -n | head -n 1 )
+                if [[ "$x" -eq "$mylock" ]] ; then
+                    echo OK
+                    break
+                fi
+                y=$( echo "$l" | awk '{ printf("%s\n", $4); }' | sed 's/prod-deploy\.lock\.//' | sort -n | tail -n 1 )
+                if [[ "$y" -gt "$mylock" ]] ; then
+                    ( >&2 echo Redundant queued build. Releasing lock and aborting. )
+                    aws s3 rm "s3://iflip-private-ops/var/prod-deploy.lock.${mylock}"
+                    exit 1
+                fi
+                sleep 5
+            done
+
   deploy:
     docker:
       - image: circleci/python:2.7.13
@@ -50,22 +92,6 @@ jobs:
       - restore_cache:
           keys:
             - v1-daenv-{{ checksum ".circleci/requirements.txt" }}
-      - run:
-          name: Wait on previous deploy
-          command: |
-            . daenv/bin/activate
-            if aws s3 ls s3://iflip-private-ops/var/iflipd-api/prod-deploy.lock ; then
-                echo Waiting for previous deploy to end...
-            fi
-            while aws s3 ls s3://iflip-private-ops/var/iflipd-api/prod-deploy.lock ; do
-                sleep 5
-            done
-      - run:
-          name: Acquire lock
-          command: |
-            . daenv/bin/activate
-            touch /tmp/prod-deploy.lock
-            aws s3 cp /tmp/prod-deploy.lock s3://iflip-private-ops/var/iflipd-api/prod-deploy.lock
       - run:
           name: Deploy to production
           command: |
@@ -82,9 +108,9 @@ jobs:
           name: Release lock
           command: |
             . daenv/bin/activate
-            if aws s3 ls s3://iflip-private-ops/var/iflipd-api/prod-deploy.lock ; then
-              aws s3 rm s3://iflip-private-ops/var/iflipd-api/prod-deploy.lock
-            fi
+            locks=$( aws s3 ls s3://iflip-private-ops/var/prod-deploy.lock || printf "" )
+            first=$( echo "$locks" | awk '{ printf("%s\n", $4); }' | sed 's/prod-deploy\.lock\.//' | sort -n | head -n 1 )
+            aws s3 rm "s3://iflip-private-ops/var/prod-deploy.lock.${first}"
           when: always
 
 workflows:

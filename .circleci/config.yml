@@ -151,9 +151,16 @@ workflows:
             branches:
               only:
                 - prod
-      - deploy:
+      - queue-and-wait-for-lock:
           requires:
             - pull-deploy-deps
+          filters:
+            branches:
+              only:
+                - prod
+      - deploy:
+          requires:
+            - queue-and-wait-for-lock
           filters:
             branches:
               only:

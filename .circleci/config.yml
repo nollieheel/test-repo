@@ -81,6 +81,7 @@ jobs:
                     aws s3 rm "s3://iflip-private-ops/var/prod-deploy.lock.${mylock}"
                     exit 1
                 fi
+                printf "."
                 sleep 5
             done
 

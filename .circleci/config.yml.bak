@@ -1,0 +1,169 @@
+version: 2
+
+jobs:
+
+  # TODO actual building can be done here, i.e. pulling in of dependencies
+  build:
+    docker:
+      - image: circleci/python:2.7.13
+    working_directory: ~/test-repo
+    steps:
+      - checkout
+      - run: "true"
+
+  # TODO Put some tests in here
+  test:
+    docker:
+      - image: circleci/python:2.7.13
+    working_directory: ~/test-repo
+    steps:
+      - checkout
+      - run: "true"
+
+  # These are dependencies for the deploy script, not the app itself
+  pull-deploy-deps:
+    docker:
+      - image: circleci/python:2.7.13
+    working_directory: ~/test-repo
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - v1-daenv-{{ checksum ".circleci/requirements.txt" }}
+      - run:
+          name: Pull in the pips
+          command: |
+            virtualenv daenv
+            . daenv/bin/activate
+            pip install -r .circleci/requirements.txt
+      - save_cache:
+          key: v1-daenv-{{ checksum ".circleci/requirements.txt" }}
+          paths:
+            - daenv
+
+  queue-and-wait-for-lock:
+    docker:
+      - image: circleci/python:2.7.13
+    working_directory: ~/test-repo
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - v1-daenv-{{ checksum ".circleci/requirements.txt" }}
+      - run:
+          name: Queue deploy lock
+          command: |
+            . daenv/bin/activate
+
+            locks=$( aws s3 ls s3://iflip-private-ops/var/prod-deploy.lock || printf "" )
+            last=$( echo "$locks" | awk '{ printf("%s\n", $4); }' | sed 's/prod-deploy\.lock\.//' | sort -n | tail -n 1 )
+
+            if [[ -z "$last" ]] ; then
+                mylock=1
+            else
+                mylock=$(( last + 1 ))
+            fi
+
+            tmpfile=$( mktemp --suffix ".prod-deploy.lock" )
+            aws s3 cp "$tmpfile" "s3://iflip-private-ops/var/prod-deploy.lock.${mylock}"
+
+            echo "Waiting on previous builds (if any) to end..."
+            while true ; do
+                l=$( aws s3 ls s3://iflip-private-ops/var/prod-deploy.lock || printf "" )
+                x=$( echo "$l" | awk '{ printf("%s\n", $4); }' | sed 's/prod-deploy\.lock\.//' | sort -n | head -n 1 )
+                if [[ "$x" -eq "$mylock" ]] ; then
+                    echo OK
+                    break
+                fi
+                y=$( echo "$l" | awk '{ printf("%s\n", $4); }' | sed 's/prod-deploy\.lock\.//' | sort -n | tail -n 1 )
+                if [[ "$y" -gt "$mylock" ]] ; then
+                    ( >&2 echo Redundant queued build. Releasing lock and aborting. )
+                    aws s3 rm "s3://iflip-private-ops/var/prod-deploy.lock.${mylock}"
+                    exit 1
+                fi
+                printf "."
+                sleep 5
+            done
+
+  deploy:
+    docker:
+      - image: circleci/python:2.7.13
+    working_directory: ~/test-repo
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - v1-daenv-{{ checksum ".circleci/requirements.txt" }}
+      - run:
+          name: Deploy to production
+          command: |
+            . daenv/bin/activate
+            echo Deploying
+            python test/asg_deploy.py -r 'us-west-2' 'API App Tier'
+      - run:
+          name: Wait on ASG on fail
+          command: |
+            echo Waiting for 300 seconds for ASG to hopefully normalize...
+            sleep 300
+          when: on_fail
+      - run:
+          name: Release lock
+          command: |
+            . daenv/bin/activate
+            locks=$( aws s3 ls s3://iflip-private-ops/var/prod-deploy.lock || printf "" )
+            first=$( echo "$locks" | awk '{ printf("%s\n", $4); }' | sed 's/prod-deploy\.lock\.//' | sort -n | head -n 1 )
+            aws s3 rm "s3://iflip-private-ops/var/prod-deploy.lock.${first}"
+          when: always
+
+workflows:
+  version: 2
+
+# TODO can be enabled to do tests on all (or some) branches except for production
+#  build-and-test:
+#    jobs:
+#      - build:
+#          filters:
+#            branches:
+#              ignore: prod
+#      - test:
+#          requires:
+#            - build
+#          filters:
+#            branches:
+#              ignore: prod
+
+  production-deploy:
+    jobs:
+      - build:
+          filters:
+            branches:
+              only:
+                - prod
+      - test:
+          requires:
+            - build
+          filters:
+            branches:
+              only:
+                - prod
+      - pull-deploy-deps:
+          requires:
+            - test
+          filters:
+            branches:
+              only:
+                - prod
+      - queue-and-wait-for-lock:
+          requires:
+            - pull-deploy-deps
+          filters:
+            branches:
+              only:
+                - prod
+      - deploy:
+          requires:
+            - queue-and-wait-for-lock
+          filters:
+            branches:
+              only:
+                - prod

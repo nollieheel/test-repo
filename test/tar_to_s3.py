@@ -10,6 +10,8 @@
 #   subprocess
 #
 
+# UPDATE: NO NEED TO MAKE THIS SCRIPT
+
 import time
 import os
 import tempfile
@@ -25,12 +27,9 @@ from datetime import datetime
 from botocore.exceptions import ClientError
 
 # Set hardcoded defaults here if desired:
-DEF_BASENAME = 'node_modules'
 DEF_DIRNAME = './'
 DEF_PROFILE = None
 DEF_REGION = None
-DEF_BUCKET = None
-
 
 def get_args():
   """
@@ -39,22 +38,19 @@ def get_args():
   parser = argparse.ArgumentParser(description='Tar up a file/directory ' +
     'and upload to an S3 bucket')
 
+  parser.add_argument('basename', help='basename of file/directory to tar up')
   parser.add_argument('-p', '--profile', help='aws credentials profile to use')
   parser.add_argument('-r', '--region', help='aws region')
   parser.add_argument('-b', '--bucket', help='s3 bucket name')
-  parser.add_argument('-d', '--dirname', help='root directory')
-  parser.add_argument('-w', '--wait', type=int,
-    help='wait time for new instances (> 0, default: {})'.format(DEF_WAIT_TIME))
+  parser.add_argument('-d', '--dirname', default=DEF_DIRNAME,
+    help='root dir (default: {})'.format(DEF_DIRNAME))
 
   args = parser.parse_args()
 
   profile = args.profile or DEF_PROFILE
   region = args.region or DEF_REGION
-  wait = args.wait or DEF_WAIT_TIME
-  tempfile = '/tmp/asg-old_{}.instances'.format(
-    args.asg_name.replace(' ','-').lower())
 
-  return [args.asg_name, profile, region, wait, tempfile]
+  return [args.basename, profile, region, args.bucket, args.dirname]
 
 
 def write_instances_to_file(asgclient, asg, tempfile):
@@ -230,14 +226,15 @@ def abort():
 
 
 if __name__ == "__main__":
-  asg, profile, region, wait, tempfile = get_args()
+  basename, profile, region, bucket, dirname = get_args()
 
-  print 'Rolling deploy for autoscaling group "{}".'.format(asg)
-  print 'Implementing instance wait time of {} seconds.'.format(wait)
+  print 'Basename of file/directory to tar: {}'.format(basename)
+  print 'Root dir of file/directory to tar: {}'.format(dirname)
   print 'AWS profile: {}\nAWS region: {}'.format(profile, region)
-  print 'Temporary file {}.'.format(tempfile)
-  print 'Start: ' + datetime.now(pytz.utc).strftime('%Y %b %d, %I:%M%p %Z')
+  print 'S3 bucket: {}'.format(bucket)
+  #print 'Start: ' + datetime.now(pytz.utc).strftime('%Y %b %d, %I:%M%p %Z')
 
+  """
   if not profile:
     if not region:
       boto3.setup_default_session()
@@ -271,4 +268,5 @@ if __name__ == "__main__":
 
   print 'Rolling deploy for autoscaling group "{}" done.'.format(asg)
   print 'End: ' + datetime.now(pytz.utc).strftime('%Y %b %d, %I:%M%p %Z')
+  """
   sys.exit(0)

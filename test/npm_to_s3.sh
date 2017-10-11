@@ -16,16 +16,17 @@ s3_bucket=cfe-ops-test/exampledir
 file_basename=test
 # root dir where file_basename is located (default is current dir)
 file_dirname=.
-# contains signature hash of current copy at h3
+# contains signature hash of current copy at s3
 file_dedup=commit_ref
 
 git_branch=nodejs_packaging
 
-# absolute location of binaries
+# location of binaries
 #bin_aws=/usr/local/bin/aws
 bin_aws=aws
 bin_tar=/bin/tar
 bin_git=/usr/bin/git
+
 ##
 ##
 
